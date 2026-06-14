@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Steffensen's Inequality Visualizer</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* CSS Reset & Variables */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --boadilla: #3333B3;
+            --black: #0a0a0a;
+            --white: #f5f4f0;
+            --gray-100: #e8e6e0;
+            --gray-300: #b0aca2;
+            --gray-500: #6e6a62;
+            --border: rgba(10, 10, 10, 0.15);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--white);
+            color: var(--black);
+            font-family: 'Instrument Sans', sans-serif;
+            font-weight: 300;
+            line-height: 1.7;
+            overflow-x: hidden;
+            padding: 2rem 4vw;
+        }
+
+        h1, h2, h3 {
+            font-family: 'EB Garamond', serif;
+            font-weight: 500;
+            line-height: 1.2;
+            color: var(--boadilla);
+        }
+
+        h1 { font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 0.5rem; }
+        .subtitle { font-size: 1rem; color: var(--gray-500); margin-bottom: 3rem; }
+
+        /* Typography Tags */
+        .tag-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Theorem Box */
+        .thm-box {
+            border: 1px solid var(--border);
+            background: #ffffff;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
+        }
+
+        .thm-header {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--boadilla);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .thm-body {
+            font-size: 1.05rem;
+            color: var(--gray-700);
+        }
+
+        .math-scroll {
+            margin: 1.5rem 0;
+            padding: 0.5rem 0;
+        }
+
+        /* Application Section */
+        .app-section {
+            border: 1px solid var(--border);
+            background: #ffffff;
+            padding: 2.5rem;
+            margin-top: 4rem;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 2.5rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+            overflow-x: auto;
+        }
+
+        .tab-item {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            padding-bottom: 0.8rem;
+            cursor: pointer;
+            position: relative;
+            background: none;
+            border: none;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-item:hover { color: var(--black); }
+
+        .tab-item.active {
+            color: var(--boadilla);
+            font-weight: 500;
+        }
+
+        .tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--boadilla);
+        }
+
+        /* Inputs & Grids */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.85rem;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border);
+            background: var(--white);
+            color: var(--black);
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--boadilla);
+        }
+
+        /* Button Ghost Style */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-decoration: none;
+            padding: 0.85rem 1.8rem;
+            border: 1px solid var(--boadilla);
+            color: var(--boadilla);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+            margin-top: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--boadilla);
+            transform: translateX(-101%);
+            transition: transform 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn:hover { 
+            color: #000000; 
+            border-color: #000000; /* Warna biru yang lebih gelap untuk garis kotak */
+        }
+        .btn:hover::before { transform: translateX(0); }
+
+        /* Sliders */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            background: var(--boadilla);
+            cursor: pointer;
+            margin-top: -6px;
+            border-radius: 0;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            cursor: pointer;
+            background: var(--border);
+        }
+
+        /* Status & Metrics */
+        .status-box {
+            padding: 1rem;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .status-error { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+        .status-success { background: #f0fdf4; border-color: #22c55e; color: #15803d; }
+
+        .metric-box {
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metric-value {
+            font-family: 'EB Garamond', serif;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--black);
+            margin: 0.5rem 0;
+        }
+
+        .highlight-bg { background: rgba(51, 51, 179, 0.05); }
+
+        .hidden { display: none; }
+
+        /* Chart Wrapper */
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Steffensen's Inequality Visualizer</h1>
+        <p class="subtitle">Discrete Version and Its Generalizations</p>
+    </header>
+
+    <section>
+        <div class="thm-box">
+            <div class="thm-header">Theorem 1 (Steffensen's Inequality on Measure Space)</div>
+            <div class="thm-body">
+                Let $f, g \in L^{1}(X)$ such that $0 \le g \le 1$ a.e. on $X$. Let $U, V \in \mathcal{A}$ be upper-separating and lower-separating sets for $f$, respectively, such that $\mu(U) = \mu(V) = \int_X g \, d\mu$. Then
+                <div class="math-scroll">$$\int_V f \, d\mu \le \int_X fg \, d\mu \le \int_U f \, d\mu.$$</div>
+            </div>
+        </div>
+
+        <div class="thm-box">
+            <div class="thm-header">Theorem 2 (Classical Discrete Steffensen)</div>
+            <div class="thm-body">
+                Let $(x_{i})_{i=1}^{n}$ be a nonincreasing finite sequence of nonnegative real numbers, and let $(y_{i})_{i=1}^{n}$ be a finite sequence such that $0\le y_{i}\le 1$ for all $i\in\{1,...,n\}$. Let $k_{1},k_{2}\in\{1,...,n\}$ such that $k_{2}\le\sum_{i=1}^{n}y_{i}\le k_{1}$, then
+                <div class="math-scroll">$$\sum_{i=n-k_{2}+1}^{n}x_{i}\le\sum_{i=1}^{n}x_{i}y_{i}\le\sum_{i=1}^{k_{1}}x_{i}.$$</div>
+            </div>
+        </div>
+
+        <div class="thm-box">
+            <div class="thm-header">Theorem 3 (Measure Space Lower Bound)</div>
+            <div class="thm-body">
+                Let $(X, \mathcal{A}, \mu)$ be a continuous measure space with $\mu(X)<\infty$. Let $0\le\alpha\le 1$ and $f, g$ be functions on $X$ such that $f, f^{\alpha}g\in L^{1}(X)$ and $f,g\ge 0$ a.e. on $X$. Define $\lambda=(\int_{X}g~d\mu)^{\alpha}$ with $\int_{X}g~d\mu>0$. Let $V$ be a lower-separating set for $f$ such that $\mu(V)=\lambda$. Assume that $g\cdot(\int_{X}g~d\mu)^{\alpha-1}\le 1$ a.e. on $V$, then
+                <div class="math-scroll">$$\int_{V}f^{\alpha}d\mu\le\left(\int_{X}gf~d\mu\right)^{\alpha}.$$</div>
+            </div>
+        </div>
+
+        <div class="thm-box">
+            <div class="thm-header">Theorem 4 (Discrete Lower Bound)</div>
+            <div class="thm-body">
+                Let $0\le\alpha\le 1$ and $(x_{i})_{i=1}^{n}$ be a nonincreasing finite sequence of nonnegative real numbers, and let $(y_{i})_{i=1}^{n}$ be a finite sequence of nonnegative real numbers. Let $k\in\mathbb{N}_{n}$ such that $k\le(\sum_{i=1}^{n}y_{i})^{\alpha}$. Assume that $y_{i}(\sum_{j=1}^{n}y_{j})^{\alpha-1}\le 1$ for every $i\in I_{k}$, then
+                <div class="math-scroll">$$\sum_{i=n-k+1}^{n}x_{i}^{\alpha}\le\left(\sum_{i=1}^{n}x_{i}y_{i}\right)^{\alpha}.$$</div>
+            </div>
+        </div>
+
+        <div class="thm-box">
+            <div class="thm-header">Theorem 5 (Generalized Discrete Lower Bound)</div>
+            <div class="thm-body">
+                Let $0<\beta\le 1-\alpha$ with $0\le\alpha<1$, and let $(x_{i})_{i=1}^{n}$ be a nonincreasing finite sequence of nonnegative real numbers, and $(y_{i})_{i=1}^{n}$ be a finite sequence of nonnegative real numbers. Let $k\in\mathbb{N}_{n}$ such that $k\le(\sum_{i=1}^{n}y_{i})^{\frac{\beta}{1-\alpha}}$. Assume that $y_{i}(\sum_{j=1}^{n}y_{j})^{\frac{\beta+\alpha-1}{1-\alpha}}\le 1$ for every $i\in I_{k}$, then
+                <div class="math-scroll">$$\sum_{i=n-k+1}^{n}x_{i}^{\beta}\le\left(\sum_{i=1}^{n}x_{i}^{1-\alpha}y_{i}\right)^{\frac{\beta}{1-\alpha}}.$$</div>
+            </div>
+        </div>
+
+        <div class="thm-box">
+            <div class="thm-header">Theorem 6 (Application of Discrete Lower Bound)</div>
+            <div class="thm-body">
+                Let $0<\beta\le 1-\alpha$ with $0\le\alpha<1$ and $(x_{i})_{i=1}^{n}$ be a nonincreasing finite sequence of nonnegative real numbers. Assume that $\sum_{i=1}^{n}x_{i}\le A$ and $\sum_{i=1}^{n}x_{i}^{\alpha}\ge B^{\alpha}$ where $A, B\in\mathbb{R}^{+}$. Let $k\in\mathbb{N}_{n}$ such that $k\le\left(\frac{B}{A}\right)^{\frac{\alpha\beta}{(\alpha+\beta)(1-\alpha)}}$. If $x_{i}\le\left(\frac{A^{\beta}}{B^{\alpha(\beta+\alpha-1)}}\right)^{\frac{1}{(\alpha+\beta)(1-\alpha)}}$ for every $i\in\mathbb{N}_{n}$, then
+                <div class="math-scroll">$$\sum_{i=n-k+1}^{n}x_{i}^{\beta}\le\left(\frac{A^{\beta}}{B^{\alpha(\beta+\alpha-1)}}\right)^{\frac{\beta}{(\alpha+\beta)(1-\alpha)}}.$$</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="app-section">
+        <h2>Interactive Application (Theorems 1 & 2)</h2>
+        
+        <div class="tab-nav" style="margin-top: 1.5rem;">
+            <button class="tab-item active" id="tab-cont" onclick="setAppMode('cont')">Continuous Version (Lebesgue)</button>
+            <button class="tab-item" id="tab-disc" onclick="setAppMode('disc')">Discrete Version</button>
+        </div>
+
+        <div id="panel-cont">
+            <div class="grid-layout">
+                <div class="input-group">
+                    <span class="tag-label">Function $f\,(x\,\,)$</span>
+                    <input id="cf" type="text" value="abs(sin(4x))">
+                </div>
+                <div class="input-group">
+                    <span class="tag-label">Weight Function $g\,(x\,\,)$</span>
+                    <input id="cg" type="text" value="cos(x)">
+                </div>
+                <div class="input-group">
+                    <span class="tag-label">Lower Bound of Set $X$</span>
+                    <input id="ca" type="number" value="0" step="any">
+                </div>
+                <div class="input-group">
+                    <span class="tag-label">Upper Bound of Set $X$</span>
+                    <input id="cb" type="number" value="1.5707963268" step="any">
+                </div>
+            </div>
+
+            <button class="btn" onclick="calcContinuous()">Calculate Lebesgue Integral</button>
+            
+            <div id="cont-status"></div>
+
+            <div id="cont-metrics" class="hidden">
+                <div class="thm-box" style="text-align: center; background: var(--white); padding: 1rem;">
+                    <div class="math-scroll" id="cont-ineq" style="font-size: 1.2rem; margin: 0;"></div>
+                </div>
+
+                <div class="grid-layout">
+                    <div class="metric-box">
+                        <span class="tag-label">Lower-Separating $V$</span>
+                        <div class="metric-value" id="cm-left">0</div>
+                        <span class="tag-label" style="text-transform: none;">$\int_V f(x) dx$</span>
+                        <div class="chart-wrapper"><canvas id="cc-left"></canvas></div>
+                    </div>
+                    <div class="metric-box highlight-bg">
+                        <span class="tag-label">Middle (Weighted)</span>
+                        <div class="metric-value" id="cm-mid">0</div>
+                        <span class="tag-label" style="text-transform: none;">$\int_X f(x)g(x) dx$</span>
+                        <div class="chart-wrapper"><canvas id="cc-mid"></canvas></div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="tag-label">Upper-Separating $U$</span>
+                        <div class="metric-value" id="cm-right">0</div>
+                        <span class="tag-label" style="text-transform: none;">$\int_U f(x) dx$</span>
+                        <div class="chart-wrapper"><canvas id="cc-right"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-disc" class="hidden">
+            <div class="tab-nav" style="border-bottom: none; margin-bottom: 1rem;">
+                <button class="tab-item active" id="tab-disc-array" onclick="setDiscInputMode('array')">Manual Array Input</button>
+                <button class="tab-item" id="tab-disc-formula" onclick="setDiscInputMode('formula')">Explicit Formula Input</button>
+            </div>
+
+            <div id="disc-array-inputs" class="grid-layout">
+                <div class="input-group">
+                    <span class="tag-label">Sequence $x_i$ (Comma separated)</span>
+                    <input id="dx" type="text" value="9,7,5,4,3,2,1">
+                </div>
+                <div class="input-group">
+                    <span class="tag-label">Sequence $y_i$ (Comma separated)</span>
+                    <input id="dy" type="text" value="0.8,0.9,0.95,0.97,0.87,0.91,0.93">
+                </div>
+            </div>
+
+            <div id="disc-formula-inputs" class="grid-layout hidden">
+                <div class="input-group">
+                    <span class="tag-label">Formula $x_i$ (Use variable $i$)</span>
+                    <input id="df-x" type="text" value="(21-i)/10">
+                </div>
+                <div class="input-group">
+                    <span class="tag-label">Formula $y_i$ (Use variable $i$)</span>
+                    <input id="df-y" type="text" value="1-1/i">
+                </div>
+                <div class="input-group">
+                    <span class="tag-label">Length $n$</span>
+                    <input id="df-n" type="number" value="20">
+                </div>
+            </div>
+
+            <button class="btn" onclick="calcDiscrete()">Calculate Sequence</button>
+
+            <div id="disc-status"></div>
+
+            <div id="disc-metrics" class="hidden">
+                <div class="grid-layout" style="border-top: 1px solid var(--border); padding-top: 2rem;">
+                    <div>
+                        <span class="tag-label">Index Bound $k_2$ (Max: $\lfloor \sum y_i \rfloor$)</span>
+                        <div class="slider-container">
+                            <span style="font-family: 'DM Mono'; font-size: 0.8rem;">0</span>
+                            <input type="range" id="sk2" oninput="updateDiscUI()">
+                            <span id="val-k2" style="font-family: 'EB Garamond'; font-size: 1.2rem; font-weight: 500; color: var(--boadilla);">0</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="tag-label">Index Bound $k_1$ (Min: $\lceil \sum y_i \rceil$)</span>
+                        <div class="slider-container">
+                            <span id="min-k1-lbl" style="font-family: 'DM Mono'; font-size: 0.8rem;">0</span>
+                            <input type="range" id="sk1" oninput="updateDiscUI()">
+                            <span id="val-k1" style="font-family: 'EB Garamond'; font-size: 1.2rem; font-weight: 500; color: var(--boadilla);">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="thm-box" style="text-align: center; background: var(--white); padding: 1rem;">
+                    <div class="math-scroll" id="disc-ineq" style="font-size: 1.2rem; margin: 0;"></div>
+                </div>
+
+                <div class="grid-layout">
+                    <div class="metric-box">
+                        <span class="tag-label">Lower Bound</span>
+                        <div class="metric-value" id="dm-left">0</div>
+                        <span class="tag-label" style="text-transform: none;">$\sum_{i=n-k_2+1}^n x_i$</span>
+                        <div class="chart-wrapper"><canvas id="dc-left"></canvas></div>
+                    </div>
+                    <div class="metric-box highlight-bg">
+                        <span class="tag-label">Middle</span>
+                        <div class="metric-value" id="dm-mid">0</div>
+                        <span class="tag-label" style="text-transform: none;">$\sum_{i=1}^n x_i y_i$</span>
+                        <div class="chart-wrapper"><canvas id="dc-mid"></canvas></div>
+                    </div>
+                    <div class="metric-box">
+                        <span class="tag-label">Upper Bound</span>
+                        <div class="metric-value" id="dm-right">0</div>
+                        <span class="tag-label" style="text-transform: none;">$\sum_{i=1}^{k_1} x_i$</span>
+                        <div class="chart-wrapper"><canvas id="dc-right"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        let charts = {};
+        let stateDisc = { xs: [], ys: [], sumy: 0, mid: 0, n: 0 };
+        let currentDiscInput = 'array';
+
+        // 1. Mendaftarkan Mode Interaksi Kustom Chart.js (Mendukung Area Positif & Negatif terhadap y=0)
+        Chart.Interaction.modes.areaHover = function(chart, e, options, useFinalPosition) {
+            const indexItems = Chart.Interaction.modes.index(chart, e, { intersect: false }, useFinalPosition);
+            if (!indexItems || indexItems.length === 0) return [];
+
+            const yCursor = e.y;
+            const validItems = [];
+            const yAxis = chart.scales.y;
+            const zeroPixel = yAxis.getPixelForValue(0);
+
+            for (const item of indexItems) {
+                const elementY = item.element.y;
+                const datasetIndex = item.datasetIndex;
+                
+                const isNearLine = Math.abs(yCursor - elementY) <= 15;
+                
+                let isInsideArea = false;
+                if (datasetIndex === 0) {
+                    const dataYValue = item.element.$context.parsed.y;
+                    // Hanya validasi area jika memiliki nilai menjauhi 0
+                    if (Math.abs(dataYValue) > 1e-6) {
+                        const minP = Math.min(elementY, zeroPixel); // Titik piksel tertinggi (secara visual di layar)
+                        const maxP = Math.max(elementY, zeroPixel); // Titik piksel terendah
+                        if (yCursor >= minP && yCursor <= maxP) {
+                            isInsideArea = true;
+                        }
+                    }
+                }
+
+                if (isNearLine || isInsideArea) {
+                    validItems.push({ item, dist: Math.abs(yCursor - elementY) });
+                }
+            }
+
+            if (validItems.length > 0) {
+                validItems.sort((a, b) => a.dist - b.dist);
+                return [validItems[0].item];
+            }
+            return [];
+        };
+
+        function setAppMode(mode) {
+            document.getElementById('tab-cont').classList.remove('active');
+            document.getElementById('tab-disc').classList.remove('active');
+            document.getElementById('panel-cont').classList.add('hidden');
+            document.getElementById('panel-disc').classList.add('hidden');
+
+            document.getElementById('tab-' + mode).classList.add('active');
+            document.getElementById('panel-' + mode).classList.remove('hidden');
+        }
+
+        function setDiscInputMode(mode) {
+            currentDiscInput = mode;
+            document.getElementById('tab-disc-array').classList.remove('active');
+            document.getElementById('tab-disc-formula').classList.remove('active');
+            document.getElementById('disc-array-inputs').classList.add('hidden');
+            document.getElementById('disc-formula-inputs').classList.add('hidden');
+
+            document.getElementById('tab-disc-' + mode).classList.add('active');
+            document.getElementById('disc-' + mode + '-inputs').classList.remove('hidden');
+        }
+
+        function parseFn(expr) {
+            try {
+                const node = math.parse(expr);
+                const code = node.compile();
+                return x => code.evaluate({ x: x });
+            } catch { return null; }
+        }
+
+        function renderMath() {
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        function showStatus(elId, msg, isError) {
+            const el = document.getElementById(elId);
+            el.innerHTML = `<div class="status-box ${isError ? 'status-error' : 'status-success'}">${msg}</div>`;
+        }
+
+        // --- CONTINUOUS LOGIC ---
+        function calcContinuous() {
+            const fStr = document.getElementById('cf').value.trim();
+            const gStr = document.getElementById('cg').value.trim();
+            const a = parseFloat(document.getElementById('ca').value);
+            const b = parseFloat(document.getElementById('cb').value);
+
+            const f = parseFn(fStr);
+            const g = parseFn(gStr);
+
+            if (!f || !g) return showStatus('cont-status', 'Failed to parse function f(x) or g(x).', true);
+            if (isNaN(a) || isNaN(b) || a >= b) return showStatus('cont-status', 'Invalid interval boundaries (ensure a < b).', true);
+
+            const N = 1000;
+            const dx = (b - a) / N;
+            let pts = [];
+
+            for (let i = 0; i < N; i++) {
+                let x = a + (i + 0.5) * dx;
+                pts.push({ x: x, f: f(x), g: g(x) });
+            }
+
+            // Validasi batasan g(x) berdasarkan teorema 2.4
+            let gValid = pts.every(p => p.g >= -1e-6 && p.g <= 1 + 1e-6);
+            if (!gValid) return showStatus('cont-status', 'Assumption violation: g(x) must be between 0 and 1.', true);
+
+            let lambda = pts.reduce((sum, p) => sum + p.g * dx, 0);
+
+            let ptsU = [...pts].sort((p1, p2) => p2.f - p1.f);
+            let areaU = 0, intU = 0;
+            ptsU.forEach(p => {
+                if (areaU + dx <= lambda + 1e-7) {
+                    areaU += dx; intU += p.f * dx; p.inU = true;
+                } else { p.inU = false; }
+            });
+
+            let ptsV = [...pts].sort((p1, p2) => p1.f - p2.f);
+            let areaV = 0, intV = 0;
+            ptsV.forEach(p => {
+                if (areaV + dx <= lambda + 1e-7) {
+                    areaV += dx; intV += p.f * dx; p.inV = true;
+                } else { p.inV = false; }
+            });
+
+            let intMid = pts.reduce((sum, p) => sum + p.f * p.g * dx, 0);
+
+            pts.forEach(p => {
+                p.inU = ptsU.find(u => u.x === p.x)?.inU || false;
+                p.inV = ptsV.find(v => v.x === p.x)?.inV || false;
+            });
+
+            showStatus('cont-status', 'Lebesgue Separating Sets successfully calculated.', false);
+            document.getElementById('cont-metrics').classList.remove('hidden');
+
+            document.getElementById('cm-left').textContent = intV.toFixed(4);
+            document.getElementById('cm-mid').textContent = intMid.toFixed(4);
+            document.getElementById('cm-right').textContent = intU.toFixed(4);
+            document.getElementById('cont-ineq').innerHTML = `$$ ${intV.toFixed(4)} \\le ${intMid.toFixed(4)} \\le ${intU.toFixed(4)} $$`;
+
+            drawContChart('cc-left', pts, 'v', 'rgba(179, 51, 51, 0.3)', 'rgba(179, 51, 51, 1)');
+            drawContChart('cc-mid', pts, 'mid', 'rgba(51, 51, 179, 0.3)', 'rgba(51, 51, 179, 1)');
+            drawContChart('cc-right', pts, 'u', 'rgba(51, 179, 102, 0.3)', 'rgba(51, 179, 102, 1)');
+
+            renderMath();
+        }
+
+        function drawContChart(id, pts, type, bgColor, borderColor) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+
+            const dataF = pts.map(p => ({ x: p.x, y: p.f }));
+            
+            let yAxisMin, yAxisMax;
+            
+            // Komputasi Sumbu Y cerdas berdasarkan nilai positif/negatif
+            if (type === 'mid') {
+                const fgValues = pts.map(p => p.f * p.g);
+                const globalMin = Math.min(...fgValues);
+                const globalMax = Math.max(...fgValues);
+                
+                let range = globalMax - globalMin;
+                if (range === 0) range = 1;
+                yAxisMin = globalMin >= 0 ? 0 : globalMin;
+                yAxisMax = globalMax <= 0 ? 0 : globalMax + (range * 0.1);
+            } else {
+                const fValues = pts.map(p => p.f);
+                const globalMin = Math.min(...fValues);
+                const globalMax = Math.max(...fValues);
+                
+                let range = globalMax - globalMin;
+                if (range === 0) range = 1;
+                yAxisMin = globalMin >= 0 ? 0 : globalMin;
+                yAxisMax = globalMax <= 0 ? 0 : globalMax + (range * 0.1);
+            }
+
+            // Mencegah bug Chart.js jika seluruh nilai adalah 0 murni
+            if (yAxisMin === 0 && yAxisMax === 0) yAxisMax = 1;
+
+            // Area diarahkan sepenuhnya ke y = 0
+            const dataArea = pts.map(p => {
+                let yVal;
+                if (type === 'v') yVal = p.inV ? p.f : 0;
+                else if (type === 'u') yVal = p.inU ? p.f : 0;
+                else yVal = p.f * p.g;
+                return { x: p.x, y: yVal };
+            });
+
+            charts[id] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: type === 'mid' ? 'f(x)g(x) Area' : 'Integral Area',
+                            data: dataArea,
+                            fill: { value: 0 }, // Mengisi area ke arah sumbu X (origin)
+                            backgroundColor: bgColor,
+                            borderColor: borderColor,
+                            borderWidth: 1,
+                            pointRadius: 0,
+                            tension: 0
+                        },
+                        {
+                            label: 'f(x)',
+                            data: dataF,
+                            borderColor: 'rgba(10, 10, 10, 0.3)',
+                            borderWidth: 1.5,
+                            borderDash: [3, 3],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'areaHover',
+                        intersect: false
+                    },
+                    animation: { duration: 1000 },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return 'x = ' + context[0].parsed.x.toFixed(2);
+                                },
+                                label: function(context) {
+                                    let yValNum = context.parsed.y;
+                                    let yVal = yValNum.toFixed(4);
+                                    let isNegative = yValNum < -1e-6; // Deteksi area negatif
+                                    
+                                    if (type === 'mid') {
+                                        if (context.datasetIndex === 1) {
+                                            return 'f(x) = ' + yVal;
+                                        } else {
+                                            let areaStr = isNegative ? 'Area f(x)g(x) (Negative)' : 'Area f(x)g(x)';
+                                            return ['f(x)g(x) = ' + yVal, areaStr];
+                                        }
+                                    } else {
+                                        if (context.datasetIndex === 1) {
+                                            return 'f(x) = ' + yVal;
+                                        } else {
+                                            let areaStr = isNegative ? 'Shaded Area (Negative)' : 'Shaded Area';
+                                            return ['f(x) = ' + yVal, areaStr];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            type: 'linear',
+                            min: pts[0].x,
+                            max: pts[pts.length - 1].x,
+                            ticks: { maxTicksLimit: 5, font: { family: 'DM Mono', size: 10 } } 
+                        },
+                        y: { 
+                            min: yAxisMin,
+                            max: yAxisMax,
+                            ticks: { maxTicksLimit: 6, font: { family: 'DM Mono', size: 10 } } 
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- DISCRETE LOGIC ---
+        function calcDiscrete() {
+            let xs = [], ys = [], n = 0;
+
+            if (currentDiscInput === 'array') {
+                xs = document.getElementById('dx').value.split(',').map(s => parseFloat(s.trim()));
+                ys = document.getElementById('dy').value.split(',').map(s => parseFloat(s.trim()));
+                if (xs.some(isNaN) || ys.some(isNaN) || xs.length !== ys.length) {
+                    return showStatus('disc-status', 'Invalid array format or unequal lengths.', true);
+                }
+                n = xs.length;
+            } else {
+                n = parseInt(document.getElementById('df-n').value);
+                if (isNaN(n) || n <= 0) return showStatus('disc-status', 'Length n must be a positive integer.', true);
+                
+                try {
+                    const nodeX = math.parse(document.getElementById('df-x').value);
+                    const codeX = nodeX.compile();
+                    const nodeY = math.parse(document.getElementById('df-y').value);
+                    const codeY = nodeY.compile();
+
+                    for (let i = 1; i <= n; i++) {
+                        xs.push(codeX.evaluate({ i: i }));
+                        ys.push(codeY.evaluate({ i: i }));
+                    }
+                } catch (e) {
+                    return showStatus('disc-status', 'Error parsing explicit formula.', true);
+                }
+            }
+
+            if (xs.some(x => x < 0) || ys.some(y => y < 0 || y > 1)) {
+                return showStatus('disc-status', 'Assumption violation: x_i must be nonnegative and y_i in [0, 1].', true);
+            }
+            for (let i = 0; i < n - 1; i++) {
+                if (xs[i+1] > xs[i] + 1e-9) return showStatus('disc-status', 'Assumption violation: sequence x_i must be nonincreasing.', true);
+            }
+
+            let sumy = ys.reduce((a, b) => a + b, 0);
+            let mid = xs.reduce((s, x, i) => s + x * ys[i], 0);
+
+            stateDisc = { xs, ys, sumy, mid, n };
+
+            showStatus('disc-status', 'Discrete sequences successfully calculated.', false);
+            document.getElementById('disc-metrics').classList.remove('hidden');
+
+            const maxK2 = Math.floor(sumy);
+            const minK1 = Math.ceil(sumy);
+
+            const sk2 = document.getElementById('sk2');
+            const sk1 = document.getElementById('sk1');
+
+            sk2.min = 0; sk2.max = maxK2; sk2.value = maxK2;
+            sk1.min = minK1; sk1.max = n; sk1.value = minK1;
+
+            document.getElementById('min-k1-lbl').textContent = minK1;
+
+            updateDiscUI();
+        }
+
+        function updateDiscUI() {
+            const { xs, ys, sumy, mid, n } = stateDisc;
+            const k2 = parseInt(document.getElementById('sk2').value);
+            const k1 = parseInt(document.getElementById('sk1').value);
+
+            document.getElementById('val-k2').textContent = k2;
+            document.getElementById('val-k1').textContent = k1;
+
+            const left = k2 > 0 ? xs.slice(n - k2).reduce((a, b) => a + b, 0) : 0;
+            const right = k1 > 0 ? xs.slice(0, k1).reduce((a, b) => a + b, 0) : 0;
+
+            document.getElementById('dm-left').textContent = left.toFixed(4);
+            document.getElementById('dm-mid').textContent = mid.toFixed(4);
+            document.getElementById('dm-right').textContent = right.toFixed(4);
+
+            document.getElementById('disc-ineq').innerHTML = `$$ ${left.toFixed(4)} \\le ${mid.toFixed(4)} \\le ${right.toFixed(4)} $$`;
+
+            drawDiscChart('dc-left', xs, ys, n, k2, 'left', 'rgba(179, 51, 51, 0.8)');
+            drawDiscChart('dc-mid', xs, ys, n, k1, 'mid', 'rgba(51, 51, 179, 0.8)');
+            drawDiscChart('dc-right', xs, ys, n, k1, 'right', 'rgba(51, 179, 102, 0.8)');
+
+            renderMath();
+        }
+
+        function drawDiscChart(id, xs, ys, n, k, type, colorHighlight) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+
+            const labels = xs.map((_, i) => i + 1);
+            let data = type === 'mid' ? xs.map((x, i) => x * ys[i]) : xs;
+
+            let allY = [...xs];
+            if (type === 'mid') {
+                allY = allY.concat(xs.map((x, i) => x * ys[i]));
+            }
+            const globalMin = Math.min(...allY);
+            const globalMax = Math.max(...allY);
+            
+            let range = globalMax - globalMin;
+            if (range === 0) range = 1;
+            const yAxisMin = globalMin >= 0 ? 0 : globalMin; 
+            const yAxisMax = globalMax <= 0 ? 0 : globalMax + (range * 0.1);
+
+            const bgColors = xs.map((_, i) => {
+                if (type === 'left') return i >= n - k ? colorHighlight : 'rgba(10, 10, 10, 0.06)';
+                if (type === 'right') return i < k ? colorHighlight : 'rgba(10, 10, 10, 0.06)';
+                return colorHighlight;
+            });
+
+            charts[id] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ 
+                        label: 'Value',
+                        data: data, 
+                        backgroundColor: bgColors, 
+                        borderWidth: 0 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: true
+                    },
+                    animation: { duration: 1000 },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(context) { return 'i = ' + context[0].label; },
+                                label: function(context) { return 'Value = ' + context.parsed.y.toFixed(4); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { font: { family: 'DM Mono', size: 10 } }, grid: { display: false } },
+                        y: { min: yAxisMin, max: yAxisMax, ticks: { font: { family: 'DM Mono', size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        window.onload = function() { setTimeout(renderMath, 500); };
+    </script>
+</body>
+</html>
