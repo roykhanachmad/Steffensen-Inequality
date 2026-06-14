@@ -1,2 +1,0 @@
-﻿# AchmadRoykhanSabiq
-# Steffensen-Inequality
